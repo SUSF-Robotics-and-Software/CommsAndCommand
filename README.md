@@ -1,2 +1,2 @@
 # communication_module
-standardised communication
+Standardised communication system between other software components
