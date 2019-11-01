@@ -2,13 +2,21 @@ import json
 
 
 # all commands inherit from this, can be used to generate jsons
+#   usage:
+#   create primat
 class command_primative:
+    """
+    usage
+    -----
+        Do not use
+        use this as a base class. Instances can then be used to hold
+        command information, including other classes
+    """
     name: str
     excluded_properties: set
 
     def __init__(self):
-        # raise NotImplementedError("Do not use the command primative")
-        pass
+        raise NotImplementedError("Do not use the command primative")
 
     def __new__(cls, *args, **kwargs):
         """
@@ -41,6 +49,15 @@ class command_primative:
     def from_json(cls, json_string: str):
         structure = json.loads()
         new_obj = cls()
+
+    def flatify(self):
+        """
+        makes the given command flat: appends all member object
+        attributes to this object.
+        """
+        for name, value in self.__dict__.items():
+            if issubclass(value, object):
+                self.__dict__.update(value.__dict__)
 
 
 class command_set:
