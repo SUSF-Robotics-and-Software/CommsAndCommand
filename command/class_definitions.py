@@ -4,11 +4,22 @@ import json
 # all commands inherit from this, can be used to generate jsons
 class command_primative:
     name: str
-    excluded_properties: list = [] 
+    excluded_properties: set
 
-    def __new__(cls):
+    def __init__(self):
+        # raise NotImplementedError("Do not use the command primative")
+        pass
+
+    def __new__(cls, *args, **kwargs):
+        """
+        On creation of an instance of the class, (or subclasses) the methods
+        of _this_ class are added to an exclusion list. This exclusion list
+        is part of every subclass, but will stop `get_structure` from
+        including attributes of the instance that are
+        """
         inst = super().__new__(cls)
-        inst.excluded_properties = cls.__dict__.keys()
+        inst.excluded_properties = set(cls.__dict__.keys())
+        inst.excluded_properties.add('excluded_properties')
         return inst
 
     def get_structure(self) -> dict:
@@ -30,3 +41,20 @@ class command_primative:
     def from_json(cls, json_string: str):
         structure = json.loads()
         new_obj = cls()
+
+
+class command_set:
+    def __init__(self, *command_list: command_primative, raise_=True):
+        self._command_set_dict = {}
+        self.raise_ = raise_
+        for command in command_list:
+            self._command_set_dict[command.name] = command
+
+    def __getitem__(self, command_name) -> command_primative:
+        return self._command_set_dict[command_name]
+
+    def __setitem__(self, command_name: str, new_command: command_primative):
+        if (new_command.name == command_name):
+            self._command_set_dict[command_name] = new_command
+        elif raise_:
+            raise ValueError("Can only update commands in set")
