@@ -59,18 +59,18 @@ class command_primative:
         return structure_dict
 
     @classmethod
-    def from_structure(cls, structure) -> cls:
-        new_obj = cls()
-        new_obj.__dict__.update(structure)
+    def from_structure(cls, structure) -> cls():
+        new_obj = cls.__new__()
+        new_obj.__init__(**structure)
         return new_obj
 
     def get_json(self) -> str:
         return json.dumps(self.get_structure())
 
     @classmethod
-    def from_json(cls, json_string: str) -> cls:
+    def from_json(cls, json_string: str) -> cls():
         structure = json.loads(json_string)
-        new_obj = cls().from_structure(structure)
+        new_obj = cls.from_structure(structure)
         return new_obj
 
     def flatten(self):
