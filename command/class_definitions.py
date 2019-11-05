@@ -3,7 +3,8 @@ import json
 
 # all commands inherit from this, can be used to generate jsons
 #   usage:
-#   create primat
+#   create subclass from this, overwrite the __init__ function
+#   with all of the variables that the command has.
 class command_primative:
     """
     usage
