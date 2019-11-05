@@ -41,36 +41,38 @@ class command_primative:
     def from_structure(cls, structure):
         new_obj = cls()
         cls.__dict__.update(structure)
+        return new_obj
 
     def get_json(self) -> str:
         return json.dumps(self.get_json())
 
     @classmethod
     def from_json(cls, json_string: str):
-        structure = json.loads()
-        new_obj = cls()
+        structure = json.loads(json_string)
+        new_obj = cls().from_structure(structure)
+        return new_obj
 
     def flatify(self):
         """
         makes the given command flat: appends all member object
         attributes to this object.
         """
-        for name, value in self.__dict__.items():
+        for value in self.__dict__.values():
             if issubclass(value, object):
                 self.__dict__.update(value.__dict__)
 
 
-class command_set:
-    def __init__(self, *command_list: command_primative, raise_=True):
+class command_list:
+    def __init__(self, *command_list_: command_primative, raise_=True):
         self._command_set_dict = {}
         self.raise_ = raise_
-        for command in command_list:
+        for command in command_list_:
             self._command_set_dict[command.name] = command
 
     def __getitem__(self, command_name) -> command_primative:
         return self._command_set_dict[command_name]
 
-    def __setitem__(self, command_name: str, new_command: command_primative):
+    def __setitem__(self, command_name: str, new_command: command_primative, raise_=True):
         if (new_command.name == command_name):
             self._command_set_dict[command_name] = new_command
         elif raise_:
