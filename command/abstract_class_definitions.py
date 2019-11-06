@@ -6,6 +6,10 @@ import json
 #   create subclass from this, overwrite the __init__ function
 #   with all of the variables that the command has.
 
+_template_cmdset = "{}\n"
+_template_cmd = "\t| {}\n"
+_template_cmdattr = "\t\t| {} = {}\n"
+
 
 class command_primitive:
     """
@@ -25,15 +29,13 @@ class command_primitive:
 
     def __new__(cls, *args, **kwargs):
         """
-            usage
-            -----
-                On creation of an instance of the class, (or subclasses) the
-                methods of the class are added to `exclusion_list`. This
-                exclusion list is part of every subclass, and will stop
-                `get_structure` from including non-data attributes, which are
-                defined by being included in the class definition, and not
-                added in the __init__ constructor method. This allows for the
-                hacky but quick `self.__dict__.update(locals())` to be used.
+            On creation of an instance of the class, (or subclasses) the
+            methods of the class are added to `exclusion_list`. This
+            exclusion list is part of every subclass, and will stop
+            `get_structure` from including non-data attributes, which are
+            defined by being included in the class definition, and not
+            added in the __init__ constructor method. This allows for the
+            hacky but quick `self.__dict__.update(locals())` to be used.
 
             returns
             -------
@@ -44,16 +46,18 @@ class command_primitive:
         inst._excluded_properties.add('_excluded_properties')
         return inst
 
-    def get_non_excluded_attrs(self):
-        non_excluded_dict = {}
-        # iterates over the instance's __dict__ (contains all attributes)
-        # if it's not excluded, it gets returned in a dict resembling
-        # a trimmed __dict__
+    def get_non_excluded_attrs(self) -> dict:
+        """
+            iterates over the instance's __dict__ (contains all attributes)
+            if it's not excluded, it gets returned in a dict resembling
+            a trimmed __dict__
+        """
         # but Richard, why not just assume that people use public and private
         # properly?
         # good question...
+        non_excluded_dict = {}
         for key, value in self.__dict__.items():
-            if key not in self.excluded_properties:
+            if key not in self._excluded_properties:
                 non_excluded_dict[key] = value
 
         return non_excluded_dict
@@ -72,15 +76,15 @@ class command_primitive:
         """
         structure_dict = {}
         for key, value in self.__dict__.items():
-            if key not in self.excluded_properties:
-                if issubclass(value, command_primative):
+            if key not in self._excluded_properties:
+                if issubclass(value, command_primitive):
                     value = value.get_structure()
                 structure_dict[key] = value
                 
         return structure_dict
 
     @classmethod
-    def from_structure(cls, structure):
+    def from_structure(cls, structure) -> object:
         new_obj = cls.__new__()
         new_obj.__init__(**structure)
         return new_obj
@@ -89,7 +93,7 @@ class command_primitive:
         return json.dumps(self.get_structure())
 
     @classmethod
-    def from_json(cls, json_string: str):
+    def from_json(cls, json_string: str) -> object:
         structure = json.loads(json_string)
         new_obj = cls.from_structure(structure)
         return new_obj
@@ -106,8 +110,7 @@ class command_primitive:
                 self.__dict__.update(value.__dict__)
 
 
-# eventually this might actually inherit from command_primative
-class command_set:
+class command_set(command_primitive):
     """
         usage
         -----
@@ -117,7 +120,10 @@ class command_set:
 
             TL;DR: this is a command state
     """
-    def __init__(self, *command_list: command_primative,
+    raise_ = True
+    _command_dict: dict
+
+    def __init__(self, *command_in_set: command_primitive,
                  name=None,
                  raise_=True):
 
@@ -126,34 +132,49 @@ class command_set:
                 "please give the command set a name with kwarg: \
                 `name='namestr'`"
             )
-
+        
+        self.name = name
         self.raise_ = raise_
-        self._command_set_dict = {}
-        for command in command_list:
-            self._command_set_dict[command.name] = command
+        self._command_dict = {}
+        for command in command_in_set:
+            self._command_dict[command.name] = command
 
-    def __getitem__(self, command_name) -> command_primative:
-        return self._command_set_dict[command_name]
+    def __getitem__(self, command_name) -> command_primitive:
+        return self._command_dict[command_name]
 
-    def __setitem__(self, command_name: str, new_command: command_primative,
+    def __setitem__(self, command_name: str, new_command: command_primitive,
                     raise_=True):
         if (new_command.name == command_name):
-            self._command_set_dict[command_name] = new_command
+            self._command_dict[command_name] = new_command
         elif raise_:
             raise ValueError("Can only update commands in set")
 
     def __iter__(self):
-        # TODO
+        # TODO - this function
         pass
 
     def __next__(self):
-        # TODO
+        # os.walk's really odd 'dir, subdirs, files' thing might
+        # go really well here. Definately a generator thing.
+        # I've seen the source, but it's pretty high IQ
+        # TODO - this function
         pass
 
     def __repr__(self):
-        out_str = ""
-        for name, value in self._command_set_dict.items():
-            # "value" currently returns the repr of the command
-            # we ideally want a list of properties... TODO
-            out_str += f"\t{name} {value}\n"
+        """
+            produces a representation of the command set.
+        """
+        out_str = _template_cmdset.format(self.name)
+        for cmd_name, cmd_obj in self._command_dict.items():
+            # adds command name to output
+            out_str += _template_cmd.format(cmd_name)
+            # gets attr dict
+            attr_dict = cmd_obj.get_non_excluded_attrs()
+            for attr_name, attr_val in attr_dict.items():
+                # adds command attributes to output
+                if attr_name == "name":
+                    continue
+                out_str += _template_cmdattr.format(
+                    attr_name, attr_val
+                )
         return out_str
