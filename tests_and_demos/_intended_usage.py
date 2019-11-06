@@ -3,7 +3,7 @@
     author: Richard A, 2019
 """
 
-import command
+from CommsAndCommand import command
 
 """
     both of these ideally should be done in the module namespace
