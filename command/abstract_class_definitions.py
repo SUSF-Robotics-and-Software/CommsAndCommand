@@ -77,7 +77,7 @@ class command_primitive:
         structure_dict = {}
         for key, value in self.__dict__.items():
             if key not in self._excluded_properties:
-                if issubclass(value, command_primitive):
+                if issubclass(type(value), command_primitive):
                     value = value.get_structure()
                 structure_dict[key] = value
                 
