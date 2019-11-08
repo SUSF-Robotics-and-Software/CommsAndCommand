@@ -124,6 +124,7 @@ class command_set(command_primitive):
             TL;DR: this is a command state
     """
     raise_ = True
+    _command_names_in_set = []
 
     def __init__(self, *command_in_set: command_primitive,
                  name=None,
@@ -138,21 +139,23 @@ class command_set(command_primitive):
         self.name = name
         self.raise_ = raise_
         for command in command_in_set:
-            self.__dict__[command.name] = command
+            if issubclass(type(command), command_primitive):
+                self._command_names_in_set.append(command.name)
+                self.__dict__[command.name] = command
+            elif raise_:
+                raise ValueError("commands included in a set must \
+                                  be a subclass of command primative")
 
     def __getitem__(self, command_name) -> command_primitive:
-        attempted_get = self.__dict__[command_name]
-        if issubclass(type(attempted_get), command_primitive):
-            return attempted_get
+        if command_name in self._command_names_in_set:
+            return self.__dict__[command_name]
         elif self.raise_:
             raise ValueError("Can only get commands from a set")
 
     def __setitem__(self, command_name: str, new_command: command_primitive,
                     raise_=True):
-        if (
-            new_command.name == command_name and
-            command_name in self.__dict__.keys()
-        ):
+        if (new_command.name == command_name and
+                command_name in self._command_names_in_set):
             self.__dict__[command_name] = new_command
         elif raise_:
             raise ValueError("Can only update commands in set")
@@ -173,16 +176,18 @@ class command_set(command_primitive):
             produces a representation of the command set.
         """
         out_str = _template_cmdset.format(self.name)
-        for cmd_name, cmd_obj in self._command_dict.items():
-            # adds command name to output
-            out_str += _template_cmd.format(cmd_name)
-            # gets attr dict
-            attr_dict = cmd_obj.get_non_excluded_attrs()
-            for attr_name, attr_val in attr_dict.items():
-                # adds command attributes to output
-                if attr_name == "name":
-                    continue
-                out_str += _template_cmdattr.format(
-                    attr_name, attr_val
-                )
+        for cmd_name, cmd_obj in self.__dict__.items():
+            # for -> if not nice
+            if cmd_name in self._command_names_in_set:
+                # adds command name to output
+                out_str += _template_cmd.format(cmd_name)
+                # gets attr dict
+                attr_dict = cmd_obj.get_non_excluded_attrs()
+                for attr_name, attr_val in attr_dict.items():
+                    # adds command attributes to output
+                    if attr_name == "name":
+                        continue
+                    out_str += _template_cmdattr.format(
+                        attr_name, attr_val
+                    )
         return out_str
