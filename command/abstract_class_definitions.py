@@ -55,6 +55,7 @@ class command_primitive:
         # but Richard, why not just assume that people use public and private
         # properly?
         # good question...
+        # does this even work?
         non_excluded_dict = {}
         for key, value in self.__dict__.items():
             if key not in self._excluded_properties:
@@ -77,6 +78,8 @@ class command_primitive:
         structure_dict = {}
         for key, value in self.__dict__.items():
             if key not in self._excluded_properties:
+                # type_of_value = type(value)
+                # result = issubclass(type_of_value, command_primitive)
                 if issubclass(type(value), command_primitive):
                     value = value.get_structure()
                 structure_dict[key] = value
@@ -121,7 +124,6 @@ class command_set(command_primitive):
             TL;DR: this is a command state
     """
     raise_ = True
-    _command_dict: dict
 
     def __init__(self, *command_in_set: command_primitive,
                  name=None,
@@ -135,17 +137,23 @@ class command_set(command_primitive):
         
         self.name = name
         self.raise_ = raise_
-        self._command_dict = {}
         for command in command_in_set:
-            self._command_dict[command.name] = command
+            self.__dict__[command.name] = command
 
     def __getitem__(self, command_name) -> command_primitive:
-        return self._command_dict[command_name]
+        attempted_get = self.__dict__[command_name]
+        if issubclass(type(attempted_get), command_primitive):
+            return attempted_get
+        elif self.raise_:
+            raise ValueError("Can only get commands from a set")
 
     def __setitem__(self, command_name: str, new_command: command_primitive,
                     raise_=True):
-        if (new_command.name == command_name):
-            self._command_dict[command_name] = new_command
+        if (
+            new_command.name == command_name and
+            command_name in self.__dict__.keys()
+        ):
+            self.__dict__[command_name] = new_command
         elif raise_:
             raise ValueError("Can only update commands in set")
 
