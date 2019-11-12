@@ -88,7 +88,7 @@ class command_primitive:
 
     @classmethod
     def from_structure(cls, structure) -> object:
-        new_obj = cls.__new__()
+        new_obj = cls.__new__(cls)
         new_obj.__init__(**structure)
         return new_obj
 
