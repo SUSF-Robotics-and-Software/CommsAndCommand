@@ -6,7 +6,7 @@ class checked_command(command_primitive):
         self.name = name
 
     def __setattr__(self, attrname, value):
-        if (attrname in self.get_non_excluded_attrs()):
+        if (attrname not in self._excluded_properties):
             if self.check_function(attrname, value):
                 super().__setattr__(attrname, value)
             else:
