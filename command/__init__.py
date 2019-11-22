@@ -7,3 +7,9 @@ from .abstract_class_definitions import \
     command_primitive as command_primitive
 from .abstract_class_definitions import \
     command_set as command_set
+from .generic_command_classes import \
+    enum_command as enum_command
+from .generic_command_classes import \
+    discrete_command as discrete_command
+from .generic_command_classes import \
+    continuous_command as continuous_command
