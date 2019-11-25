@@ -1,7 +1,14 @@
 from .abstract_class_definitions import command_primitive
 
+class single_value_command(checked_command):
+    def __init__(self, name, value=None):
+        self.name = name
+        self.value = value
+
 
 class checked_command(command_primitive):
+    acceptable_values = None
+
     def __init__(self, name):
         self.name = name
 
@@ -18,45 +25,38 @@ class checked_command(command_primitive):
         raise NotImplementedError
 
 
-class single_value_command(checked_command):
-    def __init__(self, name, value=None):
-        self.name = name
-        self.value = value
-
-
 class continuous_command(checked_command):
-    limits = None
 
-    def __init__(self, name, limits, value=None):
+    def __init__(self, name, acceptable_values, value=None):
         super().__init__(name)
-        self.limits = limits
+        self.acceptable_values = acceptable_values
 
     def check_function(self, attrname, value):
-        if (self.limits[0] <= value <= self.limits[-1]):
+        if (self.acceptable_values[0] <= value <= self.acceptable_values[-1]):
             return True
         else:
             return False
 
 
 class discrete_command(checked_command):
-    limits = None
 
-    def __init__(self, name, limits, value=None):
+    def __init__(self, name, acceptable_values, value=None):
         super().__init__(name)
-        for lim in limits:
-            assert (type(lim) == int) \
-                "cannot use non ints in discrete commands"
+        for lim in acceptable_values:
+            if self._raise and type(lim) is not int:
+                raise TypeError("Limits must be ints for discrete_commands")
         self.limits = limits
 
     def check_function(self, attrname, value):
-        if (value in list(range(self.limits[0], self.limits[-1] + 1))):
+        if (value in list(range(
+                self.acceptable_values[0],
+                self.acceptable_values[-1] + 1))):
             return True
         else:
             return False
 
 
-class enum_command(buffer_command):
-    acceptable_values = None
+class enum_command(checked_command):
 
     def __init__(self, name, acceptable_values, value=None):
         super().__init__(name)
