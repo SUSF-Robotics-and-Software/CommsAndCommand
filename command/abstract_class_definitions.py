@@ -19,8 +19,8 @@ class command_primitive:
             use this as a base class. Instances can then be used to hold
             command information, including other classes
     """
-    name: str
-    _excluded_properties: set
+    name: str = ""
+    _excluded_properties: set = set()
 
     def __init__(self):
         raise NotImplementedError(
@@ -41,9 +41,9 @@ class command_primitive:
             -------
                 new instance of the class, pre __init__
         """
+        print("new being run")
         inst = super().__new__(cls)
-        inst._excluded_properties = set(cls.__dict__.keys())
-        inst._excluded_properties.add('_excluded_properties')
+        inst._excluded_properties = set(dir(cls))
         return inst
 
     def get_non_excluded_attrs(self) -> dict:
@@ -75,7 +75,7 @@ class command_primitive:
             -------
                 dict of all attributes
         """
-        structure_dict = {}
+        structure_dict = {"name": self.name}
         for key, value in self.__dict__.items():
             if key not in self._excluded_properties:
                 # type_of_value = type(value)

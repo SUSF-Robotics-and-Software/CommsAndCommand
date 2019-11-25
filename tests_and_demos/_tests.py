@@ -56,5 +56,18 @@ def test_cmd_set_continued():
     print_troubling_set_attrs(generic_set)
 
 
+def test_generic_cmds():
+    generic_cont = command.continuous_command("generic_cont", [0, 1])
+    print("current structure:", generic_cont.get_structure())
+    try:
+        generic_cont.name = "hello world"
+    except ValueError as v:
+        print(f"got error: {v}")
+    print("current structure:", generic_cont.get_structure())
+    new_cont = command.continuous_command("new_cont", [0, 1])
+    print("current structure:", new_cont.get_structure())
+
+
 # basic_command_functionality()
-test_cmd_set_continued()
+# test_cmd_set_continued()
+test_generic_cmds()
