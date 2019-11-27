@@ -22,12 +22,11 @@ class checked_command(command_primitive):
     def _instance_setattr(self, attrname, value):
         if (attrname not in self._excluded_properties):
             if self.check_function(attrname, value):
-                self.__dict__[attrname] =  value
+                self.__dict__[attrname] = value
             else:
                 pass  # TODO - probably want some debug
         else:
             raise ValueError(f"Cannot change {attrname} after init")
-
 
     def check_function(self, attrname, value):
         raise NotImplementedError

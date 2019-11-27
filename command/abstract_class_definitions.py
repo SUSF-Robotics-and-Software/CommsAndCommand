@@ -41,7 +41,6 @@ class command_primitive:
             -------
                 new instance of the class, pre __init__
         """
-        print("new being run")
         inst = super().__new__(cls)
         inst._excluded_properties = set(dir(cls))
         return inst
@@ -171,7 +170,7 @@ class command_set(command_primitive):
         # TODO - this function
         pass
 
-    def __repr__(self):
+    def __str__(self):
         """
             produces a representation of the command set.
         """

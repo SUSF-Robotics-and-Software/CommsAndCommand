@@ -68,6 +68,19 @@ def test_generic_cmds():
     print("current structure:", new_cont.get_structure())
 
 
+def run_all_tests():
+    globs = globals()
+    test_fns = {}
+    for name, item in globs.items():
+        if "test_" in name:
+            test_fns[name] = item
+    for name, fn in test_fns.items():
+        print(f"\n\n----- Test: {name} -----\n")
+        fn()
+
+
 # basic_command_functionality()
 # test_cmd_set_continued()
-test_generic_cmds()
+# test_generic_cmds()
+# test_cmd_set()
+run_all_tests()
