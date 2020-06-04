@@ -6,34 +6,57 @@ from collections import namedtuple
 from select import select
 
 connection_address = namedtuple('connection_address', ['address', 'port'])
-THREAD_LIST = []
 
 
 class endpoint:
-    def __init__(self, local_address):
-        # things come *in* to the in box
-        self.in_box = []
-        # things go *out* of the out box
-        self.connection = None
-        self.connected = False
-        self.out_box = []
-        self.out_box_populated = threading.Event()
-        self.local_address = local_address
-        self.sock = s.socket(s.AF_INET, s.SOCK_STREAM, s.IPPROTO_TCP)
-        self.sock.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)
-        self.sock.bind(local_address)
+    """
+        base clases for endpoints on the network
 
+        do not use directly, create a subclass. You'll need to implement
+        a get_connection function, which returns true if there is a
+        connection and false if there is not. You will also need to create
+        a thread_task function, which defines the continuous process of the
+        thread.
+    """
+    def __init__(self, local_address):
+        # things come *in* to the in box from the network
+        self.in_box = []
+        # things go *out* of the out box to the network
+        self.out_box = []
+        # holds the connection object to be read/written
+        self.connection = None
+        # whether or not a connection has been established.
+        self.connected = False
+        # inter-thread signal to tell client when to send
+        self.out_box_populated = threading.Event()
+        # the address of this machine in the form of the
+        # named tuple "connection_address"
+        self.local_address = local_address
+        # the socket object
+        self.sock = s.socket(s.AF_INET, s.SOCK_STREAM, s.IPPROTO_TCP)
+        # if the socket doesn't get closed due to an error, this allows
+        # for re-use. This is a bad way of handling it, but quick and
+        # easy for testing. If the address is in use, we want a new port.
+        self.sock.setsockopt(s.SOL_SOCKET, s.SO_REUSEADDR, 1)
+        # self.sock.setsockopt(s.SOL_SOCKET, s.SO_REUSEPORT, 1)
+        # bind the socket to the local address
+        self.sock.bind(local_address)
+        # internal flag for the while loop, can be externally set; you
+        # should use endpoint.stop() however
         self._stop = False
         # might want a send thread and a recieve thread, given they don't
-        # really interact
+        # really interact, and doing both at the same time requires order.
         self._thread = threading.Thread(target=self.thread_task)
-        THREAD_LIST.append(self._thread)
 
     def start(self):
         self._thread.start()
 
     def stop(self):
-        self.sock.close()
+        self._stop = True
+        # print("network: closing connections with force")
+        # if self.connection is not None:
+        #     self.connection.close()
+        # self.sock.close()
 
     def get_connection(self):
         raise NotImplementedError("Implement a get_connection\
@@ -54,7 +77,7 @@ class endpoint:
         for readable in readables:
             # recv might return an address too, check this...
             self.in_box.append(readable.recv(2048))
-            print(self.in_box)
+            # print(self.in_box)
 
         did_send = False
         for writable in writables:
@@ -71,13 +94,13 @@ class endpoint:
 class client(endpoint):
     def __init__(self, local_address, connection_target):
         super().__init__(local_address)
+        self._thread.name = "client"
         self.connection_target = connection_target
 
     def get_connection(self):
         if not self.connected:
             self.sock.connect(self.connection_target)
             self.connection = self.sock
-            # print("client: connected")
             self.connected = True
         return self.connected
 
@@ -99,6 +122,7 @@ class client(endpoint):
 class server(endpoint):
     def __init__(self, local_address):
         super().__init__(local_address)
+        self._thread.name = "server"
         self.sock.listen()
 
     def thread_task(self):
@@ -115,5 +139,10 @@ class server(endpoint):
             self.connected = True
         return self.connected
 
+    def recv_all(self):
+        out = self.in_box
+        self.in_box = []
+        return out
+
     def recv(self):
-        return self.in_box
+        return self.in_box.pop(0)
