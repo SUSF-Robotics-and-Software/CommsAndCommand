@@ -1,80 +1,48 @@
-use std::thread;
-use std::net::{TcpListener, TcpStream, Shutdown};
+use std::net::{TcpListener, TcpStream};
 use std::io::{Read, Write};
+use std;
 use std::str::from_utf8;
 
 
-fn handle_client(mut stream: TcpStream) {
-    let mut data = [0 as u8; 50];
-    while match stream.read(&mut data) {
-        Ok(size) => {
-            stream.write(&data[0..size]).unwrap();
-            true
-        },
-        Err(_) => {
-            println!("An error occured, terminating with {}", stream.peer_addr().unwrap());
-            stream.shutdown(Shutdown::Both).unwrap();
-            false
-        }
-    } {
-        // pass
-    }
+fn send_msg(stream: &mut  TcpStream, buf: &[u8]) -> std::io::Result<()> {
+    stream.write(&buf)?;
+    Ok(())
 }
 
-
-
-fn run_client() {
-    match TcpStream::connect("localhost:12864") {
-        Ok(mut stream) => {
-            println!("Successfully connected to server in port 12864");
-
-            let msg = b"Hello!";
-
-            stream.write(msg).unwrap();
-            println!("Sent Hello, awaiting reply...");
-
-            let mut data = [0 as u8; 6]; // using 6 byte buffer
-            match stream.read_exact(&mut data) {
-                Ok(_) => {
-                    if &data == msg {
-                        println!("Reply is ok!");
-                    } else {
-                        let text = from_utf8(&data).unwrap();
-                        println!("Unexpected reply: {}", text);
-                    }
-                },
-                Err(e) => {
-                    println!("Failed to receive data: {}", e);
-                }
-            }
+fn read_msg(stream: &mut TcpStream) -> std::io::Result<()> {
+    let mut buf = [0 as u8; 128];
+    match stream.read(&mut buf) {
+        Ok(size) => {
+            println!("server: got msg {}", from_utf8(&buf[0..size]).unwrap())
         },
         Err(e) => {
-            println!("Failed to connect: {}", e);
+            println!("server: failed {}", e)
         }
     }
-    println!("Terminated.");
+    Ok(())
 }
 
 
+pub fn run_client() -> std::io::Result<()> {
+    let msg = b"hello world";
 
-fn run_server() {
-    let listener = TcpListener::bind("0.0.0.0:12864").unwrap();
-    println!("Server listening on port 12864");
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                println!("New connection: {}", stream.peer_addr().unwrap());
-                thread::spawn(move|| {
-                    // connection succeeded
-                    handle_client(stream)
-                });
-            }
-            Err(e) => {
-                println!("Error: {}", e);
-                /* connection failed */
-            }
+    let mut stream = TcpStream::connect("localhost:12864")?;
+    send_msg(&mut stream, &msg[0..11])?;
+    println!("client: sent message!");
+    Ok(())
+}
+
+
+pub fn run_server() -> std::io::Result<()> {
+    let listener = TcpListener::bind("localhost:12864")?;
+    match listener.accept() {
+        Ok((mut stream, addr)) => {
+            println!("New connection from {}", addr);
+            read_msg(&mut stream)?;
+        },
+        Err(_) => {
+            println!("No connection recieved");
         }
     }
-    // close the socket server
-    drop(listener);
+    Ok(())
 }
