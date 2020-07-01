@@ -1,21 +1,42 @@
 use std::thread;
 use std::net::{TcpListener, TcpStream, Shutdown};
 use std::io::{Read, Write};
-use std::vec::Vec;
+// use std::vec::Vec;
 use std::str;
 
+/*
+       __       __
+      / <`     '> \
+     (  / @   @ \  )
+      \(_ _\_/_ _)/
+    (\ `-/     \-' /)
+     "===\     /==="
+      .==')___(`==.
+     ' .='     `=.
+*/
 
 
 pub struct Server {
     listener: Option<TcpListener>,
     stream: Option<TcpStream>,
     thread: Option<thread::JoinHandle<()>>,
-    bytebuff: Vec<u8>,
+    // bytebuff: Vec<u8>,
     run: bool
 }
 
 
 impl Server {
+    pub fn new() -> Server {
+        let server: Server = Server {
+            listener: None,
+            stream: None,
+            thread: None, 
+            run: false
+        };
+        server
+    }
+
+
     pub fn accept(&mut self) {
          let connection_state = match self.listener.as_mut() {
             Some(listener) => {
@@ -26,7 +47,7 @@ impl Server {
                 // pass
                 Err(std::io::Error::new(std::io::ErrorKind::Other, "SERVER:Socket machine broke"))
             }
-        };
+        }; // end match listener
         match connection_state {
             Ok((stream, _)) => {
                 self.stream = Some(stream);
@@ -34,9 +55,9 @@ impl Server {
             Err(e) => {
                 println!("SERVER: big error {}", e);
             }
-        }
-
+        } // end match conneciton state
     }
+
 
     pub fn recieve(&mut self) {
         match &mut self.stream {
@@ -44,12 +65,11 @@ impl Server {
                 // server has a connection, and we want to read from it
                 read(stream);
                 // TODO: update the server's buffer object with read info
-            }
+            },
             None => {
                 // server has no such connection, and as such we can't get a connection from it
-            }
-        }
-        // self.bytebuff
+            } 
+        } // end match(self.stream)
     }
 
 }
@@ -84,5 +104,8 @@ fn _server_thread(server: &mut Server) {
 
 
 
-// pub fn init_server() -> Server {
-// }
+pub fn init_server() -> std::io::Result<Server> {
+    let mut server: Server = Server::new();
+    server.thread = Some(thread::spawn(move || _server_thread(&mut server)));
+    Ok(server)
+}
