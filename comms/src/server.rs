@@ -15,25 +15,41 @@ use std::str;
      ' .='     `=.
 */
 
-
 pub struct Server {
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl Server {
+    pub fn new() -> Server {
+        let server: Server = Server {thread: None};
+        server
+    }
+
+    pub fn init_server() -> std::io::Result<Server> {
+        let mut serverInfo: ServerInfo = ServerInfo::new();
+        let mut server = Server::new();
+        // ServerInfo.thread = Some(thread::spawn(move || _ServerInfo_thread(&mut ServerInfo)));
+        Ok(server)
+    }
+}
+
+
+
+struct ServerInfo {
     listener: Option<TcpListener>,
     stream: Option<TcpStream>,
-    thread: Option<thread::JoinHandle<()>>,
-    // bytebuff: Vec<u8>,
     run: bool
 }
 
 
-impl Server {
-    pub fn new() -> Server {
-        let server: Server = Server {
+impl ServerInfo {
+    pub fn new() -> ServerInfo {
+        let serverInfo: ServerInfo = ServerInfo {
             listener: None,
             stream: None,
-            thread: None, 
             run: false
         };
-        server
+        serverInfo
     }
 
 
@@ -45,7 +61,7 @@ impl Server {
             },
             None => {
                 // pass
-                Err(std::io::Error::new(std::io::ErrorKind::Other, "SERVER:Socket machine broke"))
+                Err(std::io::Error::new(std::io::ErrorKind::Other, "ServerInfo:Socket machine broke"))
             }
         }; // end match listener
         match connection_state {
@@ -53,7 +69,7 @@ impl Server {
                 self.stream = Some(stream);
             },
             Err(e) => {
-                println!("SERVER: big error {}", e);
+                println!("ServerInfo: big error {}", e);
             }
         } // end match conneciton state
     }
@@ -62,12 +78,12 @@ impl Server {
     pub fn recieve(&mut self) {
         match &mut self.stream {
             Some(stream) => {
-                // server has a connection, and we want to read from it
+                // ServerInfo has a connection, and we want to read from it
                 read(stream);
-                // TODO: update the server's buffer object with read info
+                // TODO: update the ServerInfo's buffer object with read info
             },
             None => {
-                // server has no such connection, and as such we can't get a connection from it
+                // ServerInfo has no such connection, and as such we can't get a connection from it
             } 
         } // end match(self.stream)
     }
@@ -81,31 +97,25 @@ fn read(stream: &mut TcpStream) {
         Ok(size) => {
             // can read up to 1024 bytes from the stream
             if let Ok(s) = str::from_utf8(&buf[0..size]) {
-                println!("SERVER: success, recieved string: {}", s);
+                println!("ServerInfo: success, recieved string: {}", s);
             }
         }
         Err(e) => {
-            println!("SERVER: warning, failed to read from stream: {}", e);
+            println!("ServerInfo: warning, failed to read from stream: {}", e);
         }
     }
 }
 
 
 
-fn _server_thread(server: &mut Server) {
-    let mut runchk = server.run;
+fn _ServerInfo_thread(serverInfo: &mut ServerInfo) {
+    let mut runchk = serverInfo.run;
     while runchk {
         // accept connections
-        server.accept();
+        serverInfo.accept();
         // recieve data from connection
-        runchk = server.run;
+        runchk = serverInfo.run;
     }
 }
 
 
-
-pub fn init_server() -> std::io::Result<Server> {
-    let mut server: Server = Server::new();
-    server.thread = Some(thread::spawn(move || _server_thread(&mut server)));
-    Ok(server)
-}
