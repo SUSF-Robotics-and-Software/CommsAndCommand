@@ -1,6 +1,6 @@
 use std::thread;
-use std::net::{TcpListener, TcpStream, Shutdown};
-use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+use std::io::{Read};
 // use std::vec::Vec;
 use std::str::from_utf8;
 
@@ -15,39 +15,29 @@ use std::str::from_utf8;
      ' .='     `=.
 */
 
-pub fn init_server() {    
-    std::thread::spawn(move || _server_task);
+pub fn init_server() -> thread::JoinHandle<()> {
+    let handle = thread::spawn(_server_task);
+    handle
 }
 
 
 fn _server_task() {
+    println!("SERVER: hi from thread");
     // create socket
     let sock: TcpListener = TcpListener::bind("127.0.0.1:5000").unwrap();
     // two senarios:
     // 1) Fails to bind the socket => try again.
     // 2) Manages to do it =>  yay
-
-
-    // get connection
-    // let mut connection: Option<TcpStream> = _wait_for_connection(sock);
-    
-    // match connection {
-    //     Some(conn) => {
-    //         // recv
-    //     },
-    //     None => println!("SERVER: Connection died")
-    // }
     let (conn, addr) = sock.accept().unwrap();
-    println!("Got connection from {}", addr);
+    println!("SERVER: Got connection from {}", addr);
     recv_cylce(conn);
-
 }
 
 fn _wait_for_connection(sock: TcpListener) -> Option<TcpStream> {
     let mut conn: Option<TcpStream> = None;
     while match sock.accept() {
         Ok((lcl_conn, addr)) => {
-            println!("Got connection from {}", addr);
+            println!("SERVER: Got connection from {}", addr);
             conn = Some(lcl_conn);
             false
         },
@@ -61,15 +51,20 @@ fn _wait_for_connection(sock: TcpListener) -> Option<TcpStream> {
 
 fn recv_cylce(mut conn: TcpStream){
     // let mut bufstring = String::new();
-    let mut buf = Vec::new();
+    let mut buf = String::new();
     loop {
-        match conn.read(&mut buf) {
+        match conn.read_to_string(&mut buf) {
             Ok(msg_size) => {
                 // send to channel
-                println!("Got msg, {}", from_utf8(&buf[0..msg_size]).unwrap());
+                if msg_size > 0 {
+                    println!("SERVER: Got msg {}", &buf);
+                }
+                // TEMP
+                // break;
             },
-            Err(e) => {
+            Err(_) => {
                 // do didly
+                println!("SERVER: failed to recieve, ending");
             }
         }
     }

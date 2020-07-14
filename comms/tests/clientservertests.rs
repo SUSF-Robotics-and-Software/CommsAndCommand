@@ -1,10 +1,11 @@
 use comms;
-use std::str;
+// use std::time::Duration;
+// use std::thread;
 
-// #[test]
-// fn hello_world() {
-//     println!("Hello world!");
-//     true;
-// }
-
-// #[test]
+#[test]
+fn basic_function() {
+    let serverhandle = comms::server::init_server();
+    let clienthandle = comms::client::init_client();
+    serverhandle.join().unwrap();
+    clienthandle.join().unwrap();
+}
