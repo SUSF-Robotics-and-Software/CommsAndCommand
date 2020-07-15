@@ -60,14 +60,14 @@ pub fn init_server() -> Server {
 
 
 fn _server_task(server_info: ServerInfo) {
-    // println!("SERVER: hi from thread");
+    println!("SERVER: Thread started");
     // create socket
     let sock: TcpListener = TcpListener::bind("127.0.0.1:5000").unwrap();
     // two senarios:
     // 1) Fails to bind the socket => try again.
     // 2) Manages to do it =>  yay
     let (conn, _addr) = sock.accept().unwrap();
-    // println!("SERVER: Got connection from {}", addr);
+    // println!("SERVER: Got connection from {}", _addr);
     recv_cylce(server_info, conn);
 }
 
