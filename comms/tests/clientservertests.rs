@@ -5,13 +5,13 @@ use comms;
 #[test]
 fn basic_function() {
     let serverhandle = comms::server::init_server();
-    comms::client::init_client();
+    let clienthandle = comms::client::init_client();
     #[allow(unused_assignments)]
     let mut recvd_string = String::new();
     recvd_string = serverhandle.msg_rx.recv().unwrap();
-    // println!("MAIN: Got message in main thead: {}", recvd_string);
+    println!("MAIN: Got message in main thread: {}", recvd_string);
     serverhandle.control_tx.send(comms::server::ServerStates::STOP).unwrap();
-    // serverhandle.handle.join().unwrap();
-    // clienthandle.join().unwrap();
+    serverhandle.handle.join().unwrap();
+    clienthandle.join().unwrap();
     assert_eq!(recvd_string, "Hello World!")
 }
