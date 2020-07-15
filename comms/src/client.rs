@@ -14,7 +14,7 @@ fn _client_task() {
     let mut sock: TcpStream = TcpStream::connect("127.0.0.1:5000").unwrap();
     // now it's connected, let's send a message.
     sock.write("Hello World!".as_bytes()).unwrap();
-    println!("CLIENT: sent msg");
+    // println!("CLIENT: sent msg");
     // done.
 }
 
