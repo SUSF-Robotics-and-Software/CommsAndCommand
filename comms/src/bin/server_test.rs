@@ -1,6 +1,6 @@
 use comms::server;
 
 fn main() {
-    let handle = server::init_server();
-    handle.join().unwrap();
+    let recv_server = server::init_server();
+    recv_server.handle.join().unwrap();
 }
