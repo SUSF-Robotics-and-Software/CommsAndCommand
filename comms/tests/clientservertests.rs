@@ -4,14 +4,16 @@ use comms;
 
 #[test]
 fn basic_function() {
-    let serverhandle = comms::server::init_server();
-    let clienthandle = comms::client::init_client();
-    #[allow(unused_assignments)]
-    let mut recvd_string = String::new();
-    recvd_string = serverhandle.msg_rx.recv().unwrap();
+    let send_string = "Hello World!".to_string();
+    let mut server = comms::server::Server::init();
+    let mut client = comms::client::Client::init();
+    client.send(send_string.clone());
+    println!("MAIN: sent msg, recving now...");
+    let recvd_string = server.recv();
     println!("MAIN: Got message in main thread: {}", recvd_string);
-    serverhandle.control_tx.send(comms::server::ServerStates::STOP).unwrap();
-    serverhandle.handle.join().unwrap();
-    clienthandle.join().unwrap();
-    assert_eq!(recvd_string, "Hello World!")
+    server.stop();
+    server.join();
+    client.stop();
+    client.join();
+    assert_eq!(recvd_string, send_string);
 }

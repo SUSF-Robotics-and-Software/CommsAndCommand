@@ -3,6 +3,7 @@ use std::net::{TcpListener, TcpStream};
 use std::io::{Read};
 use std::sync::mpsc;
 use std::time::Duration;
+use std::str::from_utf8;
 
 /*
        __       __
@@ -23,12 +24,52 @@ pub enum ServerStates {
 
 
 pub struct Server {
-    pub handle: thread::JoinHandle<()>,
+    handle: thread::JoinHandle<()>,
     // msg_tx: mpsc::Sender<String>,
-    pub msg_rx: mpsc::Receiver<String>,
-    pub control_tx: mpsc::Sender<ServerStates>,
+    msg_rx: mpsc::Receiver<String>,
+    control_tx: mpsc::Sender<ServerStates>,
     // control_rx: mpsc::Receiver<ServerStates>
 }
+
+impl Server{
+    pub fn init() -> Server{
+        let (msg_tx, msg_rx): (mpsc::Sender<String>, mpsc::Receiver<String>) = mpsc::channel();
+        let (control_tx, control_rx):  (mpsc::Sender<ServerStates>, mpsc::Receiver<ServerStates>) = mpsc::channel();
+    
+        
+        let server_info: ServerInfo = ServerInfo {
+            msg_tx: msg_tx.clone(),
+            control_rx: control_rx
+        };
+        
+        let handle = thread::spawn(move || _server_task(server_info));
+    
+        let server: Server = Server {
+            handle: handle,
+            // msg_tx: msg_tx,
+            msg_rx: msg_rx,
+            control_tx: control_tx
+            // control_rx: control_rx
+        };
+        server
+    }
+
+    pub fn stop(&mut self) {
+        &self.control_tx.send(ServerStates::STOP);
+    }
+
+    pub fn recv(&mut self) -> String{
+        let out_string = self.msg_rx.recv().unwrap();
+        out_string
+    }
+
+    pub fn join(self) {
+        self.handle.join().unwrap();
+    }
+}
+
+
+
 
 struct ServerInfo {
     msg_tx: mpsc::Sender<String>,
@@ -67,8 +108,10 @@ fn _server_task(server_info: ServerInfo) {
     // 1) Fails to bind the socket => try again.
     // 2) Manages to do it =>  yay
     let (conn, _addr) = sock.accept().unwrap();
-    // println!("SERVER: Got connection from {}", _addr);
+    conn.set_read_timeout(Some(Duration::from_millis(100))).unwrap();
+    println!("SERVER: Got connection from {}", _addr);
     recv_cylce(server_info, conn);
+    println!("SERVER: stopped.");
 }
 
 fn _wait_for_connection(sock: TcpListener) -> Option<TcpStream> {
@@ -94,19 +137,22 @@ fn inspect_server_state(server_state: &ServerStates) -> bool {
 }
 
 fn handle_incoming_msg(server_info: &ServerInfo, mut conn: &TcpStream) {
-    let mut buf = String::new();
-    match conn.read_to_string(&mut buf) {
+    // let mut buf = String::new();
+    let mut buf: [u8; 2048] = [0; 2048];
+    // println!("SERVER: listening...");
+    match conn.read(&mut buf) {
         Ok(msg_size) => {
             // message recieved from socket, update send back to main thread
             if msg_size > 0 {
-                // println!("SERVER: Got msg {}", &buf);
+                let str_msg = from_utf8(&buf[0..msg_size]).unwrap();
+                // println!("SERVER: Got msg on socket {}", str_msg);
                 // send msg to sever
-                server_info.msg_tx.send(buf).unwrap();
+                server_info.msg_tx.send(str_msg.to_string()).unwrap();
             }
             
         },
         Err(_) => {
-            // println!("SERVER: failed to recieve, ending");
+            // println!("SERVER: failed to recieve: {}", e);
             // TODO - depends on the error. if it's "stream doesn't exist"
             // the state needs to change.
         }
@@ -131,6 +177,7 @@ fn recv_cylce(server_info: ServerInfo, conn: TcpStream){
     while inspect_server_state(&last_server_instruction) {
         // get a message from the socket and send it to the main thread
         handle_incoming_msg(&server_info, &conn);
+
         // check to see if the main thread has disabled the server, and 
         // update the state accordingly
         last_server_instruction = check_control(&server_info, last_server_instruction);
