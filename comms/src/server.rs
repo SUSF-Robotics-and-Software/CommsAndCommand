@@ -1,9 +1,13 @@
-use std::thread;
-use std::net::{TcpListener, TcpStream};
-use std::io::{Read};
-use std::sync::mpsc;
-use std::time::Duration;
-use std::str::from_utf8;
+
+use std::{
+    thread,
+    net::{TcpListener, TcpStream},
+    io::Read,
+    sync::mpsc::{Receiver, Sender, channel},
+    time::Duration
+};
+
+use crate::error::*;
 
 /*
        __       __
@@ -17,90 +21,89 @@ use std::str::from_utf8;
 */
 
 
+/// TODO: Add doc
 pub enum ServerStates {
-    RUN,
-    STOP
+    Run,
+    Stop
 }
 
 
+/// TODO: Add doc
 pub struct Server {
-    handle: thread::JoinHandle<()>,
-    // msg_tx: mpsc::Sender<String>,
-    msg_rx: mpsc::Receiver<String>,
-    control_tx: mpsc::Sender<ServerStates>,
-    // control_rx: mpsc::Receiver<ServerStates>
+    handle: Option<thread::JoinHandle<()>>,
+    msg_rx: Receiver<String>,
+    control_tx: Sender<ServerStates>,
 }
 
-impl Server{
-    pub fn init() -> Server{
-        let (msg_tx, msg_rx): (mpsc::Sender<String>, mpsc::Receiver<String>) = mpsc::channel();
-        let (control_tx, control_rx):  (mpsc::Sender<ServerStates>, mpsc::Receiver<ServerStates>) = mpsc::channel();
+impl Server {
+    /// TODO: Add doc
+    pub fn init() -> Self {
+        let (msg_tx, msg_rx): (Sender<String>, Receiver<String>) = channel();
+        let (control_tx, control_rx):  (Sender<ServerStates>, Receiver<ServerStates>) = channel();
     
         
         let server_info: ServerInfo = ServerInfo {
             msg_tx: msg_tx.clone(),
-            control_rx: control_rx
+            control_rx
         };
         
-        let handle = thread::spawn(move || _server_task(server_info));
+        let handle = thread::spawn(move || server_task(server_info));
     
-        let server: Server = Server {
-            handle: handle,
-            // msg_tx: msg_tx,
-            msg_rx: msg_rx,
-            control_tx: control_tx
-            // control_rx: control_rx
-        };
-        server
+        Server {
+            handle: Some(handle),
+            msg_rx,
+            control_tx
+        }
     }
 
-    pub fn stop(&mut self) {
-        &self.control_tx.send(ServerStates::STOP);
+    /// TODO: Add doc
+    pub fn stop(&mut self) -> Result<()> {
+        self.control_tx.send(ServerStates::Stop)
+            .map_err(|e| Error::ServerStateSendError(e))?;
+
+        self.handle
+            .take().map_or_else(|| Err(Error::BgThreadNotRunning), |j| Ok(j))?
+            .join().map_err(|e| Error::ThreadJoinError(e))?;
+        
+        Ok(())
     }
 
-    pub fn recv(&mut self) -> String{
-        let out_string = self.msg_rx.recv().unwrap();
-        out_string
-    }
+    /// TODO: Add doc
+    pub fn recv(&mut self) -> Result<String> {
 
-    pub fn join(self) {
-        self.handle.join().unwrap();
+        self.msg_rx.recv().map_err(|e| Error::ChannelReceiveError(e))
+
     }
 }
 
-
-
-
+/// TODO: Add doc
 struct ServerInfo {
-    msg_tx: mpsc::Sender<String>,
-    control_rx: mpsc::Receiver<ServerStates>
+    msg_tx: Sender<String>,
+    control_rx: Receiver<ServerStates>
 }
 
-
-pub fn init_server() -> Server {
-    let (msg_tx, msg_rx): (mpsc::Sender<String>, mpsc::Receiver<String>) = mpsc::channel();
-    let (control_tx, control_rx):  (mpsc::Sender<ServerStates>, mpsc::Receiver<ServerStates>) = mpsc::channel();
+pub fn _init_server() -> Server {
+    let (msg_tx, msg_rx): (Sender<String>, Receiver<String>) = channel();
+    let (control_tx, control_rx):  (Sender<ServerStates>, Receiver<ServerStates>) = channel();
 
     
     let server_info: ServerInfo = ServerInfo {
         msg_tx: msg_tx.clone(),
-        control_rx: control_rx
+        control_rx
     };
     
-    let handle = thread::spawn(move || _server_task(server_info));
+    let handle = thread::spawn(move || server_task(server_info));
 
     let server: Server = Server {
-        handle: handle,
-        // msg_tx: msg_tx,
-        msg_rx: msg_rx,
-        control_tx: control_tx
-        // control_rx: control_rx
+        handle: Some(handle),
+        msg_rx,
+        control_tx
     };
     server
 }
 
 
-fn _server_task(server_info: ServerInfo) {
+fn server_task(server_info: ServerInfo) {
     println!("SERVER: Thread started");
     // create socket
     let sock: TcpListener = TcpListener::bind("127.0.0.1:5000").unwrap();
@@ -131,8 +134,8 @@ fn _wait_for_connection(sock: TcpListener) -> Option<TcpStream> {
 
 fn inspect_server_state(server_state: &ServerStates) -> bool {
     match server_state {
-        ServerStates::RUN => return true,
-        ServerStates::STOP => return false
+        ServerStates::Run => return true,
+        ServerStates::Stop => return false
     }
 }
 
@@ -144,7 +147,7 @@ fn handle_incoming_msg(server_info: &ServerInfo, mut conn: &TcpStream) {
         Ok(msg_size) => {
             // message recieved from socket, update send back to main thread
             if msg_size > 0 {
-                let str_msg = from_utf8(&buf[0..msg_size]).unwrap();
+                let str_msg = std::str::from_utf8(&buf[0..msg_size]).unwrap();
                 // println!("SERVER: Got msg on socket {}", str_msg);
                 // send msg to sever
                 server_info.msg_tx.send(str_msg.to_string()).unwrap();
@@ -173,7 +176,7 @@ fn check_control(sever_info: &ServerInfo, last_server_instruction: ServerStates)
 
 fn recv_cylce(server_info: ServerInfo, conn: TcpStream){
     // let mut bufstring = String::new();
-    let mut last_server_instruction: ServerStates = ServerStates::RUN;
+    let mut last_server_instruction: ServerStates = ServerStates::Run;
     while inspect_server_state(&last_server_instruction) {
         // get a message from the socket and send it to the main thread
         handle_incoming_msg(&server_info, &conn);
