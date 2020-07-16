@@ -1,2 +1,6 @@
-pub mod server;
-pub mod client;
+mod server;
+mod client;
+mod error;
+
+pub use server::Server;
+pub use client::Client;
